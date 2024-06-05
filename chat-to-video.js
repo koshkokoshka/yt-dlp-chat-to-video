@@ -186,7 +186,7 @@ async function main() {
     const outputPath = args['o'] || args['output'] || 'output.mp4';
 
     const chatFont = args['font'] || 'bold 16pt Arial';
-    const backgroundColor = args['background-color'] || '#00FF00';
+    const backgroundColor = args['background-color'] || '#000000';
     const authorNameColor = args['author-color'] || '#aaaaaa';
     const messageTextColor = args['message-color'] || '#ffffff';
 
