@@ -9,6 +9,11 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
 2. [Install FFmpeg](https://ffmpeg.org/download.html)<br>
    *For Windows users: Download ffmpeg.exe and place it next to the script file.*
 
+3. Install dependencies
+   ```bash
+   npm install
+   ```
+
 3. Download the YouTube stream with live chat replay using [yt-dlp](https://github.com/yt-dlp/yt-dlp):
     ```bash
     yt-dlp --live-from-start --write-subs <youtube_url>
