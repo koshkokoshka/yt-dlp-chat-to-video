@@ -14,12 +14,12 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
    npm install
    ```
 
-3. Download the YouTube stream with live chat replay using [yt-dlp](https://github.com/yt-dlp/yt-dlp):
+4. Download the YouTube stream with live chat replay using [yt-dlp](https://github.com/yt-dlp/yt-dlp):
     ```bash
     yt-dlp --live-from-start --write-subs <youtube_url>
     ```
 
-4. After the stream download completes, a ".live_chat.json" file will appear in the directory.<br>
+5. After the stream download completes, a ".live_chat.json" file will appear in the directory.<br>
    Use this file as an argument to the script:
     ```bash
     node ./ytdlp-chat2video.js input.live_chat.json
