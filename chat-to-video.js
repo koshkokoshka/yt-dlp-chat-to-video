@@ -79,7 +79,6 @@ function readMessages(filePath) {
     });
 }
 
-// Simple function to parse arguments
 function findMessageIndexAtTime(messages, time) {
     for (let i = 0; i < messages.length; i++) {
         if (messages[i].time > time) {
@@ -87,32 +86,6 @@ function findMessageIndexAtTime(messages, time) {
         }
     }
     return messages.length - 1; // last message
-}
-
-function parseArgs(args) {
-    const result = {
-        _: [] // positional arguments goes in this array
-    };
-    for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
-
-        // Handle flags (e.g., --flag or -f)
-        if (arg.startsWith('--')) {
-            const key = arg.slice(2);
-            const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
-            result[key] = value;
-            if (value !== true) i++;
-        } else if (arg.startsWith('-')) {
-            const key = arg.slice(1);
-            const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
-            result[key] = value;
-            if (value !== true) i++;
-        } else {
-            // Handle positional arguments
-            result._.push(arg);
-        }
-    }
-    return result;
 }
 
 function wrapText(ctx, text, firstLineWidth, maxWidth) {
@@ -148,6 +121,33 @@ function getRemainingTimeString(seconds) {
         return `${mins}m ${secs}s`;
     }
     return `${secs}s`;
+}
+
+// Simple function to parse arguments
+function parseArgs(args) {
+    const result = {
+        _: [] // positional arguments goes in this array
+    };
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+
+        // Handle flags (e.g., --flag or -f)
+        if (arg.startsWith('--')) {
+            const key = arg.slice(2);
+            const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
+            result[key] = value;
+            if (value !== true) i++;
+        } else if (arg.startsWith('-')) {
+            const key = arg.slice(1);
+            const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
+            result[key] = value;
+            if (value !== true) i++;
+        } else {
+            // Handle positional arguments
+            result._.push(arg);
+        }
+    }
+    return result;
 }
 
 async function main() {
