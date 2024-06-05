@@ -185,6 +185,11 @@ async function main() {
 
     const outputPath = args['o'] || args['output'] || 'output.mp4';
 
+    const chatFont = args['font'] || 'bold 16pt Arial';
+    const backgroundColor = args['background-color'] || '#00FF00';
+    const authorNameColor = args['author-color'] || '#aaaaaa';
+    const messageTextColor = args['message-color'] || '#ffffff';
+
     let currentTime = 0;
     let currentMessageIndex = findMessageIndexAtTime(messages, currentTime);
     let duration = (timeTo - timeFrom) + 2.0; // считаем длительность видео с небольшим запасом
@@ -196,11 +201,11 @@ async function main() {
     // Создаем canvas
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
-    ctx.font = args['font'] || 'bold 16pt Arial';
-    ctx.fillStyle = 'black';
+    ctx.font = chatFont;
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, width, height);
     function renderChat() {
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, width, height);
 
         let y = height; // start from bottom
@@ -217,11 +222,11 @@ async function main() {
             y -= messageLineHeight * Math.max(1, messageTextLines.length);
             let lineX = 0;
             let lineY = y;
-            ctx.fillStyle = '#aaaaaa';
+            ctx.fillStyle = authorNameColor;
             ctx.fillText(authorNameText, lineX, lineY);
             lineX += authorNameWidth;
             for (const line of messageTextLines) {
-                ctx.fillStyle = 'white';
+                ctx.fillStyle = messageTextColor;
                 ctx.fillText(line, lineX, lineY);
                 lineX = 0;
                 lineY += messageLineHeight;
@@ -269,7 +274,7 @@ async function main() {
         }
         if (accumulator2 > 200) { // 5 times per second
             accumulator2 -= 200;
-            process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${i+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
+            process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
         }
         lastRealTime = realTime;
         if (currentFrame === frames-1) { process.stdout.write('\n'); } // done

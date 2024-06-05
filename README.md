@@ -29,10 +29,13 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
 ```bash
     node ./chat-to-video.js [OPTIONS] input.live_chat.json -o output.mp4
 ```
-* `-o --output.mp4` `--output output.mp4` Output filename
-* `--width 385` Video width
-* `--height 400` Video height
-* `--frame-rate 10` Video framerate
-* `--font 'bold 16pt Arial'` Chat font
-* `--from 0` Start time in seconds
-* `--to 60` End time in seconds
+* `-o output.mp4` `--output output.mp4` - Output filename
+* `--width 385` - Video width
+* `--height 400` - Video height
+* `--frame-rate 10` - Video framerate
+* `--font 'bold 16pt Arial'` - Chat font
+* `--background-color '#00FF00'` - Chat background color
+* `--author-color '#aaaaaa'` - Author name color
+* `--message-color '#ffffff'` - Message text color
+* `--from 0` - Start time in seconds
+* `--to 60` - End time in seconds
