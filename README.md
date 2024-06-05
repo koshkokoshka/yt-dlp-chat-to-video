@@ -2,12 +2,12 @@
 
 Converts *.live_chat.json to an .mp4 video for use as an overlay in video editing.
 
-## Usage
+## How to use
 
 1. [Install Node.js](https://nodejs.org/en)
 
 2. [Install FFmpeg](https://ffmpeg.org/download.html)<br>
-   *For Windows users: Download ffmpeg.exe and place it next to the script file.*
+   (*For Windows users: download [ffmpeg.exe](https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip) and place it next to the script file*)
 
 3. Install dependencies
    ```bash
