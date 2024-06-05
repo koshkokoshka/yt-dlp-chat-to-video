@@ -22,12 +22,12 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
 5. After the stream download completes, a ".live_chat.json" file will appear in the directory.<br>
    Use this file as an argument to the script:
     ```bash
-    node ./ytdlp-chat2video.js input.live_chat.json
+    node ./chat-to-video.js input.live_chat.json
     ```
 
 ## Command line arguments
 ```bash
-    node ./ytdlp-chat2video.js [OPTIONS] input.live_chat.json -o output.mp4
+    node ./chat-to-video.js [OPTIONS] input.live_chat.json -o output.mp4
 ```
 * `-o --output output.mp4` Output filename
 * `--width 385` Video width
