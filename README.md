@@ -27,7 +27,7 @@ Converts `.live_chat.json` to `.mp4` video for overlaying live chat over recorde
     ```
 
 5. After the stream download completes, a `video_id.live_chat.json` file will appear in the directory.<br>
-   Use this file as an argument to the script:
+   Pass this file to the script:
     ```bash
     node ./chat-to-video.js video_id.live_chat.json
     ```
