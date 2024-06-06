@@ -31,7 +31,7 @@ Converts `.live_chat.json` to `.mp4` video for overlaying live chat over recorde
     ```bash
     node ./chat-to-video.js video_id.live_chat.json
     ```
-    At the end you will see the result in the `output.mp4` file
+    When conversion is complete, the result will be in the `output.mp4` file
 
 ## Command line arguments
 ```bash
