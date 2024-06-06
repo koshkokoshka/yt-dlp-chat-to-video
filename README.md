@@ -4,7 +4,7 @@ Converts `.live_chat.json` to `.mp4` video for overlaying live chat over recorde
 
 <br/>
 <div align="center">
-   <img alt="screenshot_1" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/66a5897b-ab66-45c3-af3a-8ad77044988a" height="280">
+   <img alt="screenshot_1" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/1267472b-9905-4b83-93f3-14b3a42e2a10" height="280">
    <img alt="screenshot_2" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/afe1b22a-4e4f-4c32-a838-de4fafc2cdd4" height="360">
 </div>
 <br/>
