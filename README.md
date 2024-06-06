@@ -2,8 +2,12 @@
 
 Converts `.live_chat.json` to an `.mp4` video for use as an overlay in video editing.
 
-<img alt="screenshot_1" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/66a5897b-ab66-45c3-af3a-8ad77044988a" height="300">
-<img alt="screenshot_2" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/afe1b22a-4e4f-4c32-a838-de4fafc2cdd4" height="300">
+<br/>
+<div align="center">
+   <img alt="screenshot_1" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/66a5897b-ab66-45c3-af3a-8ad77044988a" height="280">
+   <img alt="screenshot_2" src="https://github.com/koshkokoshka/yt-dlp-chat-to-video/assets/12164048/afe1b22a-4e4f-4c32-a838-de4fafc2cdd4" height="360">
+</div>
+<br/>
 
 ## How to use
 
