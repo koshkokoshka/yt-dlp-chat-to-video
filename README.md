@@ -1,6 +1,6 @@
 # yt-dlp - Live Chat JSON to MP4 Video
 
-Converts *.live_chat.json to an .mp4 video for use as an overlay in video editing.
+Converts `.live_chat.json` to an `.mp4` video for use as an overlay in video editing.
 
 ## How to use
 
@@ -16,19 +16,19 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
 
 4. Download the YouTube stream with live chat replay using [yt-dlp](https://github.com/yt-dlp/yt-dlp):
     ```bash
-    yt-dlp --live-from-start --write-subs <youtube_url>
+    yt-dlp --live-from-start --write-subs https://www.youtube.com/watch?v=CqnNp8kwE78
     ```
 
-5. After the stream download completes, a ".live_chat.json" file will appear in the directory.<br>
+5. After the stream download completes, a `video_id.live_chat.json` file will appear in the directory.<br>
    Use this file as an argument to the script:
     ```bash
-    node ./chat-to-video.js input.live_chat.json
+    node ./chat-to-video.js video_id.live_chat.json
     ```
     At the end you will see the result in the `output.mp4` file
 
 ## Command line arguments
 ```bash
-node ./chat-to-video.js [OPTIONS] input.live_chat.json -o output.mp4
+node ./chat-to-video.js [OPTIONS] video_id.live_chat.json -o output.mp4
 ```
 ### Options
 * `-o output.mp4` `--output output.mp4` - Output filename
