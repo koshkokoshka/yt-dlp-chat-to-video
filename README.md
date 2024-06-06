@@ -1,6 +1,6 @@
 # yt-dlp - Live Chat JSON to MP4 Video
 
-Converts `.live_chat.json` to `.mp4` video for overlaying live chat over recorded streams.
+Converts `.live_chat.json` from [yt-dlp](https://github.com/yt-dlp/yt-dlp) to `.mp4` video for overlaying live chats over recorded streams.
 
 <br/>
 <div align="center">
