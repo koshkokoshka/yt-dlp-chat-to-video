@@ -24,10 +24,11 @@ Converts *.live_chat.json to an .mp4 video for use as an overlay in video editin
     ```bash
     node ./chat-to-video.js input.live_chat.json
     ```
+    At the end you will see the result in the `output.mp4` file
 
 ## Command line arguments
 ```bash
-    node ./chat-to-video.js [OPTIONS] input.live_chat.json -o output.mp4
+node ./chat-to-video.js [OPTIONS] input.live_chat.json -o output.mp4
 ```
 ### Options
 * `-o output.mp4` `--output output.mp4` - Output filename
