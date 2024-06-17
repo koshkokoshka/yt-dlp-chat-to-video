@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -49,6 +51,9 @@ function parseMessages(messages) {
         if (!chatAction.addChatItemAction.item.liveChatTextMessageRenderer) {
             continue;
         }
+        if (!chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorName) {
+            continue;
+        }
 
         //
         // Process message data
@@ -56,7 +61,7 @@ function parseMessages(messages) {
         result.push({
             author: chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText,
             text: formatMessageText(chatAction.addChatItemAction.item.liveChatTextMessageRenderer.message),
-            time: Number(message.replayChatItemAction.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
+            time: Number(message.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
         })
     }
 
@@ -274,10 +279,16 @@ async function main() {
         }
         if (accumulator2 > 200) { // 5 times per second
             accumulator2 -= 200;
-            process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
+            printProgress(currentFrame);
         }
         lastRealTime = realTime;
-        if (currentFrame === frames-1) { process.stdout.write('\n'); } // done
+        if (currentFrame === frames-1) { // done
+            printProgress(currentFrame);
+            process.stdout.write('\n');
+        }
+    }
+    function printProgress(currentFrame) {
+        process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
     }
 
     const frames = Math.floor(frameRate * duration);
