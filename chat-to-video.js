@@ -10,9 +10,9 @@ const ffmpeg = require('fluent-ffmpeg');
 const imageCache = new Map(); // URL -> image
 
 async function fetchUserAvatar(url) {
-    console.log(`Loading user avatar ${url}`);
     let image = imageCache.get(url);
     if (!image) {
+        console.log(`Loading user avatar ${url}`);
         image = await loadImage(url);
         imageCache.set(url, image);
     }
@@ -50,6 +50,7 @@ async function parseMessages(messages) {
         if (!message.replayChatItemAction.actions || !message.replayChatItemAction.actions.length) {
             continue;
         }
+
         const chatAction = message.replayChatItemAction.actions[0];
         if (!chatAction) {
             continue;
@@ -60,28 +61,33 @@ async function parseMessages(messages) {
         if (!chatAction.addChatItemAction.item) {
             continue;
         }
-        if (!chatAction.addChatItemAction.item.liveChatTextMessageRenderer) {
+
+        const liveChatMessage = chatAction.addChatItemAction.item.liveChatTextMessageRenderer;
+        if (!liveChatMessage) {
             continue;
         }
-        if (!chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorName) {
-            continue;
+
+        // Get author name
+        const authorName = liveChatMessage.authorName;
+        if (!authorName) {
+            continue; // author name is required (if there is no author name - most likely it's a system message)
         }
 
         // Load author avatar
-        let avatar = null;
-        const authorPhoto = chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto;
+        let authorAvatar = null;
+        const authorPhoto = liveChatMessage.authorPhoto;
         if (Array.isArray(authorPhoto.thumbnails) && authorPhoto.thumbnails.length > 0) {
-            const authorPhotoThumbnail = chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto.thumbnails[0];
-            avatar = await fetchUserAvatar(authorPhotoThumbnail.url);
+            const authorPhotoThumbnail = authorPhoto.thumbnails[0];
+            authorAvatar = await fetchUserAvatar(authorPhotoThumbnail.url);
         }
 
         //
-        // Process message data
+        // Format message
         //
         result.push({
-            author: chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText,
-            avatar: avatar,
-            text: formatMessageText(chatAction.addChatItemAction.item.liveChatTextMessageRenderer.message),
+            author: authorName.simpleText,
+            avatar: authorAvatar,
+            text: formatMessageText(liveChatMessage.message),
             time: Number(message.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
         })
     }
@@ -134,21 +140,9 @@ function wrapText(ctx, text, firstLineWidth, maxWidth) {
     return lines;
 }
 
-function getRemainingTimeString(seconds) {
-    if (seconds <= 0) {
-        return '...'; // unknown
-    }
-
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-
-    if (mins > 0) {
-        return `${mins}m ${secs}s`;
-    }
-    return `${secs}s`;
-}
-
-// Simple function to parse arguments
+/**
+ * Simple function to parse command line arguments
+ */
 function parseArgs(args) {
     const result = {
         _: [] // positional arguments goes in this array
@@ -161,12 +155,12 @@ function parseArgs(args) {
             const key = arg.slice(2);
             const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
             result[key] = value;
-            if (value !== true) i++;
+            if (value !== true) { i++; } // skip value
         } else if (arg.startsWith('-')) {
             const key = arg.slice(1);
             const value = args[i + 1] && !args[i + 1].startsWith('-') ? args[i + 1] : true;
             result[key] = value;
-            if (value !== true) i++;
+            if (value !== true) { i++; } // skip value
         } else {
             // Handle positional arguments
             result._.push(arg);
@@ -181,7 +175,7 @@ async function main() {
 
     const filePath = args._[0];
     if (!filePath) {
-        console.log(`Usage:\n${path.basename(process.argv[1])} <input_file>`);
+        console.log(`Usage:\n${path.basename(process.argv[1])} <input_file.live_chat.json>`);
         return false;
     }
     if (!fs.existsSync(filePath)) {
@@ -203,7 +197,7 @@ async function main() {
     const height = args['height'] || 400;
     const frameRate = args['frame-rate'] || 8;
 
-    const maxTime = messages[messages.length - 1].time;
+    const maxTime = messages[messages.length - 1].time; // get last message time
     const timeFrom = args['from'] || 0;
     const timeTo = args['to'] || maxTime;
 
@@ -277,16 +271,14 @@ async function main() {
         }
     }
 
-    // Генерация кадров
+    //
+    // Generate frames for FFMpeg
+    //
     const passThroughStream = new stream.PassThrough();
     const command = ffmpeg(passThroughStream)
       .size(`${width}x${height}`)
-      .inputOptions([
-        '-r', frameRate
-      ])
-      .outputOptions(
-        '-pix_fmt', 'yuv420p'
-      )
+      .inputOptions('-r', frameRate)
+      .outputOptions('-pix_fmt', 'yuv420p')
       .output(outputPath)
       .on('end', () => {
           console.log('Video created successfully');
@@ -296,12 +288,27 @@ async function main() {
       })
       .run();
 
+    const frames = Math.floor(frameRate * duration);
     let framesCounter = 0;
     let framesPerSecond = 0;
     let lastRealTime = Date.now();
     let accumulator1 = 0;
     let accumulator2 = 0;
     let remainingSeconds = 0;
+    function getRemainingTimeString(seconds) {
+        if (seconds <= 0) {
+            return '...'; // unknown
+        }
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        if (mins > 0) {
+            return `${mins}m ${secs}s`;
+        }
+        return `${secs}s`;
+    }
+    function printProgress(currentFrame) {
+        process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
+    }
     function updateProgress(currentFrame) {
         framesCounter++;
         const realTime = Date.now();
@@ -325,11 +332,6 @@ async function main() {
             process.stdout.write('\n');
         }
     }
-    function printProgress(currentFrame) {
-        process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
-    }
-
-    const frames = Math.floor(frameRate * duration);
     for (let i = 0; i < frames; i++) {
         if (currentMessageIndex < messages.length && currentTime >= messages[currentMessageIndex].time) {
             renderChat();
