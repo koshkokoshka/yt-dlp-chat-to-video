@@ -4,8 +4,20 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const stream = require('stream');
-const { createCanvas } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const ffmpeg = require('fluent-ffmpeg');
+
+const imageCache = new Map(); // URL -> image
+
+async function fetchUserAvatar(url) {
+    console.log(`Loading user avatar ${url}`);
+    let image = imageCache.get(url);
+    if (!image) {
+        image = await loadImage(url);
+        imageCache.set(url, image);
+    }
+    return image;
+}
 
 function formatMessageText(messageText) {
     let result = '';
@@ -24,7 +36,7 @@ function formatMessageText(messageText) {
     return result;
 }
 
-function parseMessages(messages) {
+async function parseMessages(messages) {
     const result = [];
 
     for (const message of messages) {
@@ -55,11 +67,20 @@ function parseMessages(messages) {
             continue;
         }
 
+        // Load author avatar
+        let avatar = null;
+        const authorPhoto = chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto;
+        if (Array.isArray(authorPhoto.thumbnails) && authorPhoto.thumbnails.length > 0) {
+            const authorPhotoThumbnail = chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorPhoto.thumbnails[0];
+            avatar = await fetchUserAvatar(authorPhotoThumbnail.url);
+        }
+
         //
         // Process message data
         //
         result.push({
             author: chatAction.addChatItemAction.item.liveChatTextMessageRenderer.authorName.simpleText,
+            avatar: avatar,
             text: formatMessageText(chatAction.addChatItemAction.item.liveChatTextMessageRenderer.message),
             time: Number(message.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
         })
@@ -78,8 +99,7 @@ function readMessages(filePath) {
             result.push(JSON.parse(line));
         });
         rl.on('close', () => {
-            const parsed = parseMessages(result);
-            resolve(parsed);
+            resolve(result);
         });
     });
 }
@@ -170,7 +190,9 @@ async function main() {
     }
 
     // Загрузим сообщения из *.live_chat.json
-    const messages = await readMessages(filePath);
+    let messages;
+    messages = await readMessages(filePath);
+    messages = await parseMessages(messages);
     if (!messages || !messages.length) {
         console.error(`Failed to read messages from "${filePath}"`);
         return false;
@@ -223,19 +245,35 @@ async function main() {
             const authorNameText = `${message.author}: `;
             const authorNameWidth = ctx.measureText(authorNameText).width;
 
-            const messageTextLines = wrapText(ctx, message.text, width-authorNameWidth, width);
+            let authorWithAvatarWidth = authorNameWidth;
+            if (message.avatar) {
+                authorWithAvatarWidth += message.avatar.width;
+            }
+
+            const messageTextLines = wrapText(ctx, message.text, width - authorWithAvatarWidth, width);
             y -= messageLineHeight * Math.max(1, messageTextLines.length);
+
             let lineX = 0;
             let lineY = y;
+            // Draw author avatar
+            if (message.avatar) {
+                const avatarSize = messageLineHeight;
+                ctx.drawImage(message.avatar, lineX, lineY - avatarSize, avatarSize, avatarSize);
+                lineX += avatarSize;
+            }
+            // Draw author name
             ctx.fillStyle = authorNameColor;
             ctx.fillText(authorNameText, lineX, lineY);
             lineX += authorNameWidth;
+            // Draw text
             for (const line of messageTextLines) {
                 ctx.fillStyle = messageTextColor;
                 ctx.fillText(line, lineX, lineY);
                 lineX = 0;
                 lineY += messageLineHeight;
             }
+
+            y -= 4; // space between messages
         }
     }
 
