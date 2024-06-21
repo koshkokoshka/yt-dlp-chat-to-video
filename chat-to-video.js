@@ -12,8 +12,13 @@ const imageCache = new Map(); // URL -> image
 async function fetchUserAvatar(url) {
     let image = imageCache.get(url);
     if (!image) {
-        console.log(`Loading user avatar ${url}`);
-        image = await loadImage(url);
+        console.log(`Downloading user avatar ${imageCache.size+1} ${url}`);
+        try {
+            image = await loadImage(url);
+        } catch (e) {
+            console.warn('Failed to load user avatar', e);
+            return null;
+        }
         imageCache.set(url, image);
     }
     return image;
@@ -88,8 +93,8 @@ async function parseMessages(messages) {
             author: authorName.simpleText,
             avatar: authorAvatar,
             text: formatMessageText(liveChatMessage.message),
-            time: Number(message.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
-        })
+            time: Number(message.replayChatItemAction.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
+        });
     }
 
     return result;
