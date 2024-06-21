@@ -86,6 +86,14 @@ async function parseMessages(messages) {
             authorAvatar = await fetchUserAvatar(authorPhotoThumbnail.url);
         }
 
+        let messageTime = message.videoOffsetTimeMsec; // live chat
+        if (!message.videoOffsetTimeMsec) {
+            messageTime = message.replayChatItemAction.videoOffsetTimeMsec; // replay chat
+        }
+        if (!messageTime) {
+            continue;
+        }
+
         //
         // Format message
         //
@@ -93,7 +101,7 @@ async function parseMessages(messages) {
             author: authorName.simpleText,
             avatar: authorAvatar,
             text: formatMessageText(liveChatMessage.message),
-            time: Number(message.replayChatItemAction.videoOffsetTimeMsec) / 1000.0 // from milliseconds to seconds
+            time: Number(messageTime) / 1000.0 // from milliseconds to seconds
         });
     }
 
