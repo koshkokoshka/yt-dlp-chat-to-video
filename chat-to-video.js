@@ -41,7 +41,7 @@ function formatMessageText(messageText) {
     return result;
 }
 
-async function parseMessages(messages) {
+async function parseMessages(messages, skipAvatars) {
     const result = [];
 
     for (const message of messages) {
@@ -81,9 +81,11 @@ async function parseMessages(messages) {
         // Load author avatar
         let authorAvatar = null;
         const authorPhoto = liveChatMessage.authorPhoto;
-        if (Array.isArray(authorPhoto.thumbnails) && authorPhoto.thumbnails.length > 0) {
-            const authorPhotoThumbnail = authorPhoto.thumbnails[0];
-            authorAvatar = await fetchUserAvatar(authorPhotoThumbnail.url);
+        if (!skipAvatars) {
+            if (Array.isArray(authorPhoto.thumbnails) && authorPhoto.thumbnails.length > 0) {
+                const authorPhotoThumbnail = authorPhoto.thumbnails[0];
+                authorAvatar = await fetchUserAvatar(authorPhotoThumbnail.url);
+            }
         }
 
         let messageTime = message.videoOffsetTimeMsec; // live chat
@@ -182,6 +184,10 @@ function parseArgs(args) {
     return result;
 }
 
+function getOutputFileName(inputFilePath) {
+    return path.basename(inputFilePath, '.live_chat.json') + '.mp4';
+}
+
 async function main() {
     // Get the command line arguments, excluding the first two elements
     const args = parseArgs(process.argv.slice(2));
@@ -196,10 +202,12 @@ async function main() {
         return false;
     }
 
+    const noAvatars = args['no-avatars'] || false;
+
     // Загрузим сообщения из *.live_chat.json
     let messages;
     messages = await readMessages(filePath);
-    messages = await parseMessages(messages);
+    messages = await parseMessages(messages, noAvatars);
     if (!messages || !messages.length) {
         console.error(`Failed to read messages from "${filePath}"`);
         return false;
@@ -217,7 +225,7 @@ async function main() {
     const messageLineHeight = 20;
     const maxMessagesShown = Math.floor(height / messageLineHeight);
 
-    const outputPath = args['o'] || args['output'] || 'output.mp4';
+    const outputPath = args['o'] || args['output'] || getOutputFileName(filePath) || 'output.mp4';
 
     const chatFont = args['font'] || 'bold 16pt Arial';
     const backgroundColor = args['background-color'] || '#000000';
@@ -320,7 +328,13 @@ async function main() {
         return `${secs}s`;
     }
     function printProgress(currentFrame) {
-        process.stdout.write(`Generating video frames... (${framesPerSecond} FPS, ${currentFrame+1}/${frames} frames, ${Math.floor(currentTime)}s/${Math.floor(duration)}s, ${getRemainingTimeString(remainingSeconds)} remaining) \r`);
+        const statusLine = ''
+          + `${currentFrame+1}/${frames} frames, `
+          + `${Math.floor(currentTime)}s/${Math.floor(duration)}s, `
+          + `${framesPerSecond} FPS, `
+          + `x${(framesPerSecond / frameRate).toFixed(1)}, `
+          + `${getRemainingTimeString(remainingSeconds)} remaining`;
+        process.stdout.write(`Generating video frames... (${statusLine}) \r`);
     }
     function updateProgress(currentFrame) {
         framesCounter++;

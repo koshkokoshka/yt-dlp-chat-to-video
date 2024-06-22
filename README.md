@@ -48,3 +48,4 @@ node ./chat-to-video.js [OPTIONS] video_id.live_chat.json -o output.mp4
 * `--message-color '#ffffff'` - Message text color
 * `--from 0` - Start time in seconds
 * `--to 60` - End time in seconds
+* `--no-avatars` - Skip downloading user avatars
