@@ -33,13 +33,6 @@ Converts `.live_chat.json` from [yt-dlp](https://github.com/yt-dlp/yt-dlp) to `.
     ```
     When conversion is complete, the result will be in the `output.mp4` file
 
-## Troubleshooting
-**Problem:** Fonts look ugly and I see an error like:
-`loading Pango-WARNING **: 20:15:46.219: couldn't load font "Roboto Medium Not-Rotated 13px", falling back to "Sans Medium Not-Rotated 13px", expect ugly output.`
-
-**Solution:** If you're on Windows, install the missing font (e.g., Roboto) on your system.
-
-
 ## Command line arguments
 ```bash
 node ./chat-to-video.js [OPTIONS] video_id.live_chat.json -o output.mp4
@@ -57,3 +50,10 @@ node ./chat-to-video.js [OPTIONS] video_id.live_chat.json -o output.mp4
 * `--to 60` - End time in seconds
 * `--no-avatars` - Skip downloading user avatars
 * `--youtube-api-key` - (Optional) Specify YouTube API key to download missing user avatars
+
+## Troubleshooting
+* 
+   **Problem:** Fonts look ugly and I see an error like:
+`loading Pango-WARNING **: 20:15:46.219: couldn't load font "Roboto Medium Not-Rotated 13px", falling back to "Sans Medium Not-Rotated 13px", expect ugly output.`
+
+   **Solution:** If you're on Windows, install the missing font (e.g., Roboto) on your system.
