@@ -26,17 +26,19 @@ Converts `.live_chat.json` from [yt-dlp](https://github.com/yt-dlp/yt-dlp) to `.
     yt-dlp --live-from-start --write-subs https://www.youtube.com/watch?v=CqnNp8kwE78
     ```
 
-5. After the stream download completes, a `video_id.live_chat.json` file will appear in the directory.<br>
+5. After the stream download completes, a `<video_id>.live_chat.json` file will appear in the directory.<br>
    Pass this file to the script:
     ```bash
     node ./chat-to-video.js video_id.live_chat.json -o output.mp4
     ```
     When conversion is complete, the result will be in the `output.mp4` file
 
-## FAQ
-*  **Q:** Fonts look ugly and I get an error: `loading Pango-WARNING **: 20:15:46.219: couldn't load font "Roboto Medium Not-Rotated 13px", falling back to "Sans Medium Not-Rotated 13px", expect ugly output.`
+## Troubleshooting
+**Problem:** Fonts look ugly and I see an error like:
+`loading Pango-WARNING **: 20:15:46.219: couldn't load font "Roboto Medium Not-Rotated 13px", falling back to "Sans Medium Not-Rotated 13px", expect ugly output.`
 
-   **A:** If you're using Windows, you must install the font first on your PC
+**Solution:** If you're on Windows, install the missing font (e.g., Roboto) on your system.
+
 
 ## Command line arguments
 ```bash
