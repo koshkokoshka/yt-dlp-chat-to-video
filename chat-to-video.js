@@ -4,23 +4,66 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const stream = require('stream');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont, Image } = require('canvas');
 const ffmpeg = require('fluent-ffmpeg');
+
+let YOUTUBE_API_KEY = ''
+
+let CHAT_BACKGROUND = '#0F0F0F'
+let AUTHOR_COLOR = 'rgba(255, 255, 255, 0.7)'
+let AUTHOR_FONT = '13px Roboto-Medium';
+let MESSAGE_COLOR = 'white'
+let MESSAGE_FONT = '13px Roboto-Regular';
+
+const AVATAR_SIZE = 24;
+const LINE_HEIGHT = 24;
+
+let FALLBACK_AVATAR_IMAGE = new Image();
+FALLBACK_AVATAR_IMAGE.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==';
 
 const imageCache = new Map(); // URL -> image
 
-async function fetchUserAvatar(url) {
-    let image = imageCache.get(url);
-    if (!image) {
-        console.log(`Downloading user avatar ${imageCache.size+1} ${url}`);
+async function fetchUserAvatar(message) {
+    const channelId = message.authorExternalChannelId;
+    if (!channelId) {
+        return null;
+    }
+
+    // Get saved image
+    let image = imageCache.get(channelId);
+    if (image) {
+        return image;
+    }
+
+    // Try load avatar from message data
+    const photo = message.authorPhoto;
+    if (photo && Array.isArray(photo.thumbnails) && photo.thumbnails.length > 0) {
         try {
+            const url = photo.thumbnails[0].url;
+            console.log(`Downloading user avatar ${imageCache.size+1} ${url}`);
             image = await loadImage(url);
         } catch (e) {
             console.warn('Failed to load user avatar', e);
-            return null;
         }
-        imageCache.set(url, image);
     }
+
+    // Try load avatar using YouTube API to fetch channel thumbnail
+    if (!image && YOUTUBE_API_KEY && YOUTUBE_API_KEY.length !== 0) {
+        try {
+            const apiResponse = await (await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&fields=items%2Fsnippet%2Fthumbnails&key=${YOUTUBE_API_KEY}`)).json()
+            const url = apiResponse.items[0].snippet.thumbnails.default.url;
+            console.log(`Downloading user avatar ${imageCache.size+1} ${url}`);
+            image = await loadImage(url);
+        } catch (e) {
+            console.warn('Failed to load user avatar', e);
+        }
+    }
+
+    if (!image) {
+        return null;
+    }
+
+    imageCache.set(channelId, image);
     return image;
 }
 
@@ -80,12 +123,8 @@ async function parseMessages(messages, skipAvatars) {
 
         // Load author avatar
         let authorAvatar = null;
-        const authorPhoto = liveChatMessage.authorPhoto;
         if (!skipAvatars) {
-            if (Array.isArray(authorPhoto.thumbnails) && authorPhoto.thumbnails.length > 0) {
-                const authorPhotoThumbnail = authorPhoto.thumbnails[0];
-                authorAvatar = await fetchUserAvatar(authorPhotoThumbnail.url);
-            }
+            authorAvatar = await fetchUserAvatar(liveChatMessage);
         }
 
         let messageTime = message.videoOffsetTimeMsec; // live chat
@@ -134,19 +173,20 @@ function findMessageIndexAtTime(messages, time) {
     return messages.length - 1; // last message
 }
 
-function wrapText(ctx, text, firstLineWidth, maxWidth) {
+function wrapText(ctx, text, firstLineOffsetX, maxWidth) {
     const words = text.split(' ');
     const lines = [];
     let currentLine = words[0];
 
     for (let i = 1; i < words.length; i++) {
         const word = words[i];
-        const width = ctx.measureText(currentLine + ' ' + word).width;
-        if (width < (lines.length === 0 ? firstLineWidth : maxWidth)) {
-            currentLine += ' ' + word;
-        } else {
+        const offsetX = (lines.length === 0) ? firstLineOffsetX : 0;
+        const currentWidth = offsetX + ctx.measureText(currentLine + ' ' + word).width;
+        if (currentWidth > maxWidth) {
             lines.push(currentLine);
             currentLine = word;
+        } else {
+            currentLine += ' ' + word;
         }
     }
     if (currentLine.length !== 0) {
@@ -188,6 +228,75 @@ function getOutputFileName(inputFilePath) {
     return path.basename(inputFilePath, '.live_chat.json') + '.mp4';
 }
 
+function drawRoundedImage(ctx, image, dx, dy, dw, dh) {
+    ctx.save();
+    ctx.beginPath();
+    const radius = Math.min(dw, dh) / 2;
+    ctx.arc(dx + radius, dy + radius, radius, 0, Math.PI * 2, false);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(image, dx, dy, dw, dh);
+    ctx.restore();
+}
+
+function drawMessage(ctx, avatarImage, author, message) {
+    ctx.font = AUTHOR_FONT;
+    let authorMeasurement = ctx.measureText(author);
+
+    let authorX = AVATAR_SIZE + 16; // store left edge of the message content
+    let authorY = (LINE_HEIGHT + authorMeasurement.actualBoundingBoxAscent) / 2;
+
+    let messageX = authorX + authorMeasurement.width + 8;
+    let messageY = authorY;
+
+    const messageLines = wrapText(ctx, message, messageX, ctx.canvas.width - authorX);
+
+    let avatarX = 0;
+    let avatarY = messageLines.length > 1 ? 5 : 0;
+
+    // Draw avatar
+    drawRoundedImage(ctx, avatarImage ?? FALLBACK_AVATAR_IMAGE, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
+
+    // Draw author name
+    ctx.fillStyle = AUTHOR_COLOR;
+    ctx.fillText(author, authorX, authorY);
+
+    // Draw message text
+    ctx.font = MESSAGE_FONT;
+    ctx.fillStyle = MESSAGE_COLOR;
+    let lineX = messageX;
+    let lineY = messageY;
+    for (const messageLine of messageLines) {
+        ctx.fillText(messageLine, lineX, lineY);
+        lineX  = authorX;
+        lineY += 16;
+    }
+
+    return Math.max(AVATAR_SIZE, 16 * messageLines.length) + 8; // return total message height + spacing between messages
+}
+
+function drawChat(ctx, messages, currentMessageIndex) {
+
+    // Draw background
+    ctx.fillStyle = CHAT_BACKGROUND;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    // Draw messages
+    ctx.save();
+    ctx.translate(0, ctx.canvas.height); // start drawing messages from bottom
+    const maxMessagesShown = Math.floor(ctx.canvas.height / LINE_HEIGHT);
+    for (let j = 0; j < maxMessagesShown; j++) {
+        let message = messages[currentMessageIndex - j];
+        if (!message) {
+            continue;
+        }
+
+        let messageHeight = drawMessage(ctx, message.avatar, message.author, message.text);
+        ctx.translate(0, -messageHeight);
+    }
+    ctx.restore();
+}
+
 async function main() {
     // Get the command line arguments, excluding the first two elements
     const args = parseArgs(process.argv.slice(2));
@@ -201,6 +310,12 @@ async function main() {
         console.error(`Input file not found: ${filePath}`);
         return false;
     }
+
+    // Register fonts
+    registerFont(path.join(__dirname, 'Roboto-Regular.ttf'), { family: 'Roboto-Regular' });
+    registerFont(path.join(__dirname, 'Roboto-Medium.ttf'), { family: 'Roboto-Medium' });
+
+    YOUTUBE_API_KEY = args['youtube-api-key'] || '';
 
     const noAvatars = args['no-avatars'] || false;
 
@@ -222,15 +337,11 @@ async function main() {
     const timeFrom = args['from'] || 0;
     const timeTo = args['to'] || maxTime;
 
-    const messageLineHeight = 20;
-    const maxMessagesShown = Math.floor(height / messageLineHeight);
-
     const outputPath = args['o'] || args['output'] || getOutputFileName(filePath) || 'output.mp4';
 
-    const chatFont = args['font'] || 'bold 16pt Arial';
-    const backgroundColor = args['background-color'] || '#000000';
-    const authorNameColor = args['author-color'] || '#aaaaaa';
-    const messageTextColor = args['message-color'] || '#ffffff';
+    CHAT_BACKGROUND = args['background-color'] || '#0F0F0F';
+    AUTHOR_COLOR = args['author-color'] || 'rgba(255, 255, 255, 0.7)';
+    MESSAGE_COLOR = args['message-color'] || '#ffffff';
 
     let currentTime = 0;
     let currentMessageIndex = findMessageIndexAtTime(messages, currentTime);
@@ -243,54 +354,9 @@ async function main() {
     // Создаем canvas
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
-    ctx.font = chatFont;
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, width, height);
-    function renderChat() {
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, width, height);
-
-        let y = height; // start from bottom
-        for (let j = 0; j < maxMessagesShown; j++) {
-            let message = messages[currentMessageIndex - j];
-            if (!message) {
-                continue;
-            }
-
-            const authorNameText = `${message.author}: `;
-            const authorNameWidth = ctx.measureText(authorNameText).width;
-
-            let authorWithAvatarWidth = authorNameWidth;
-            if (message.avatar) {
-                authorWithAvatarWidth += message.avatar.width;
-            }
-
-            const messageTextLines = wrapText(ctx, message.text, width - authorWithAvatarWidth, width);
-            y -= messageLineHeight * Math.max(1, messageTextLines.length);
-
-            let lineX = 0;
-            let lineY = y;
-            // Draw author avatar
-            if (message.avatar) {
-                const avatarSize = messageLineHeight;
-                ctx.drawImage(message.avatar, lineX, lineY - avatarSize, avatarSize, avatarSize);
-                lineX += avatarSize;
-            }
-            // Draw author name
-            ctx.fillStyle = authorNameColor;
-            ctx.fillText(authorNameText, lineX, lineY);
-            lineX += authorNameWidth;
-            // Draw text
-            for (const line of messageTextLines) {
-                ctx.fillStyle = messageTextColor;
-                ctx.fillText(line, lineX, lineY);
-                lineX = 0;
-                lineY += messageLineHeight;
-            }
-
-            y -= 4; // space between messages
-        }
-    }
+    ctx.quality = 'bilinear';
+    ctx.textDrawingMode = 'path';
+    ctx.antialias = 'subpixel';
 
     //
     // Generate frames for FFMpeg
@@ -361,7 +427,7 @@ async function main() {
     }
     for (let i = 0; i < frames; i++) {
         if (currentMessageIndex < messages.length && currentTime >= messages[currentMessageIndex].time) {
-            renderChat();
+            drawChat(ctx, messages, currentMessageIndex);
             currentMessageIndex++;
         }
         passThroughStream.write(canvas.toBuffer('image/png', { compressionLevel: 0 }));

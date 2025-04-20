@@ -29,9 +29,14 @@ Converts `.live_chat.json` from [yt-dlp](https://github.com/yt-dlp/yt-dlp) to `.
 5. After the stream download completes, a `video_id.live_chat.json` file will appear in the directory.<br>
    Pass this file to the script:
     ```bash
-    node ./chat-to-video.js video_id.live_chat.json
+    node ./chat-to-video.js video_id.live_chat.json -o output.mp4
     ```
     When conversion is complete, the result will be in the `output.mp4` file
+
+## FAQ
+*  **Q:** Fonts look ugly and I get an error: `loading Pango-WARNING **: 20:15:46.219: couldn't load font "Roboto Medium Not-Rotated 13px", falling back to "Sans Medium Not-Rotated 13px", expect ugly output.`
+
+   **A:** If you're using Windows, you must install the font first on your PC
 
 ## Command line arguments
 ```bash
@@ -44,8 +49,9 @@ node ./chat-to-video.js [OPTIONS] video_id.live_chat.json -o output.mp4
 * `--frame-rate 10` - Video framerate
 * `--font 'bold 16pt Arial'` - Chat font
 * `--background-color '#000000'` - Chat background color
-* `--author-color '#aaaaaa'` - Author name color
+* `--author-color 'rgba(255, 255, 255, 0.7)'` - Author name color
 * `--message-color '#ffffff'` - Message text color
 * `--from 0` - Start time in seconds
 * `--to 60` - End time in seconds
 * `--no-avatars` - Skip downloading user avatars
+* `--youtube-api-key` - (Optional) Specify YouTube API key to download missing user avatars
