@@ -67,21 +67,22 @@ async function fetchUserAvatar(message) {
     return image;
 }
 
-function formatMessageText(messageText) {
-    let result = '';
-    for (const run of messageText.runs) {
-        if (run.text) {
-            result += run.text;
-        }
-        // TODO: Emojis not supported by node-canvas
-        // if (run.emoji) {
-        //     if (run.emoji.image) {
-        //         continue; // TODO: custom emojis not supported yet
-        //     }
-        //     result += run.emoji.emojiId;
-        // }
+async function preloadEmoji(emoji) {
+    if (imageCache.has(emoji.emojiId)) {
+        return true;
     }
-    return result;
+    const image = emoji.image;
+    if (image && Array.isArray(image.thumbnails) && image.thumbnails.length > 0) {
+        try {
+            const url = image.thumbnails[0].url;
+            console.log(`Downloading emoji ${imageCache.size+1} ${url}`);
+            imageCache.set(emoji.emojiId, await loadImage(url));
+            return true;
+        } catch (e) {
+            console.warn('Failed to load emoji', e);
+        }
+    }
+    return false;
 }
 
 async function parseMessages(messages, skipAvatars) {
@@ -141,9 +142,18 @@ async function parseMessages(messages, skipAvatars) {
         result.push({
             author: authorName.simpleText,
             avatar: authorAvatar,
-            text: formatMessageText(liveChatMessage.message),
+            text: liveChatMessage.message.runs,
             time: Number(messageTime) / 1000.0 // from milliseconds to seconds
         });
+    }
+
+    // Preload emojis
+    for (const message of result) {
+        for (const span of message.text) {
+            if (span.emoji) {
+                await preloadEmoji(span.emoji);
+            }
+        }
     }
 
     return result;
@@ -171,28 +181,6 @@ function findMessageIndexAtTime(messages, time) {
         }
     }
     return messages.length - 1; // last message
-}
-
-function wrapText(ctx, text, firstLineOffsetX, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = words[0];
-
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const offsetX = (lines.length === 0) ? firstLineOffsetX : 0;
-        const currentWidth = offsetX + ctx.measureText(currentLine + ' ' + word).width;
-        if (currentWidth > maxWidth) {
-            lines.push(currentLine);
-            currentLine = word;
-        } else {
-            currentLine += ' ' + word;
-        }
-    }
-    if (currentLine.length !== 0) {
-        lines.push(currentLine);
-    }
-    return lines;
 }
 
 /**
@@ -249,10 +237,83 @@ function drawMessage(ctx, avatarImage, author, message) {
     let messageX = authorX + authorMeasurement.width + 8;
     let messageY = authorY;
 
-    const messageLines = wrapText(ctx, message, messageX, ctx.canvas.width - authorX);
+    const EMOJI_SIZE = 16;
+
+    function wrapMessage(message) {
+        const lines = [ [] ];
+        let x = messageX;
+        let currentLine = 0;
+        for (const span of message) {
+            // if (span.text) {
+            //     const words = span.text.split(' ');
+            //     let text = '';
+            //     for (const word of words) {
+            //         const wordWidth = ctx.measureText(word + ' ').width;
+            //         if ((x+wordWidth) > ctx.canvas.width) {
+            //             // new line
+            //             lines.push([]);
+            //             currentLine++;
+            //             x = authorX;
+            //         }
+            //         // text += word + ' ';
+            //         lines[currentLine].push({ x: x, text: word + ' ' });
+            //         x += wordWidth;
+            //     }
+            // }
+            if (span.text) {
+                const words = span.text.split(' ');
+                let text = '';
+                let textX = x;
+                let textWidth = 0;
+                for (const word of words) {
+                    const wordWidth = ctx.measureText(word + ' ').width;
+                    if ((x+wordWidth) > ctx.canvas.width) {
+                        x = authorX;
+
+                        lines[currentLine].push({ x: textX, text: text });
+                        textX = x;
+                        text = '';
+
+                        // new line
+                        lines.push([]);
+                        currentLine++;
+                    }
+                    text += word + ' ';
+                    textWidth += wordWidth;
+
+                    x += wordWidth;
+                }
+                if (text.length > 0) {
+                    lines[currentLine].push({ x: textX, text: text });
+                }
+            }
+            if (span.emoji) {
+                if ((x+EMOJI_SIZE) > ctx.canvas.width) {
+                    // new line
+                    lines.push([]);
+                    currentLine++;
+                    x = authorX;
+                }
+                lines[currentLine].push({ x: x, emoji: span.emoji });
+                x += EMOJI_SIZE;
+            }
+        }
+        return lines;
+    }
+    const messageLines = wrapMessage(message);
 
     let avatarX = 0;
     let avatarY = messageLines.length > 1 ? 5 : 0;
+
+    let lineX = messageX;
+    let lineY = messageY;
+    for (const messageLine of messageLines) {
+        lineX  = authorX;
+        lineY += 16;
+    }
+
+    const messageHeight = Math.max(AVATAR_SIZE, 16 * messageLines.length) + 8; // return total message height + spacing between messages
+    ctx.translate(0, -messageHeight);
 
     // Draw avatar
     drawRoundedImage(ctx, avatarImage ?? FALLBACK_AVATAR_IMAGE, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
@@ -264,10 +325,23 @@ function drawMessage(ctx, avatarImage, author, message) {
     // Draw message text
     ctx.font = MESSAGE_FONT;
     ctx.fillStyle = MESSAGE_COLOR;
-    let lineX = messageX;
-    let lineY = messageY;
+    lineX = messageX;
+    lineY = messageY;
     for (const messageLine of messageLines) {
-        ctx.fillText(messageLine, lineX, lineY);
+        for (const span of messageLine) {
+            if (span.text) {
+                ctx.fillText(span.text, span.x, lineY);
+            }
+            if (span.emoji) {
+                const image = imageCache.get(span.emoji.emojiId);
+                if (image) {
+                    ctx.drawImage(image, span.x, lineY - EMOJI_SIZE + 2, EMOJI_SIZE, EMOJI_SIZE);
+                } else {
+                    let emoji = span.emoji?.image?.accessibility?.accessibilityData?.label;
+                    ctx.fillRect(emoji, lineY - EMOJI_SIZE, EMOJI_SIZE, EMOJI_SIZE);
+                }
+            }
+        }
         lineX  = authorX;
         lineY += 16;
     }
@@ -291,8 +365,7 @@ function drawChat(ctx, messages, currentMessageIndex) {
             continue;
         }
 
-        let messageHeight = drawMessage(ctx, message.avatar, message.author, message.text);
-        ctx.translate(0, -messageHeight);
+        drawMessage(ctx, message.avatar, message.author, message.text);
     }
     ctx.restore();
 }
@@ -334,8 +407,8 @@ async function main() {
     const frameRate = args['frame-rate'] || 8;
 
     const maxTime = messages[messages.length - 1].time; // get last message time
-    const timeFrom = args['from'] || 0;
-    const timeTo = args['to'] || maxTime;
+    const timeFrom = Number(args['from']) || 0;
+    const timeTo = Number(args['to']) || maxTime;
 
     const outputPath = args['o'] || args['output'] || getOutputFileName(filePath) || 'output.mp4';
 
@@ -343,7 +416,7 @@ async function main() {
     AUTHOR_COLOR = args['author-color'] || 'rgba(255, 255, 255, 0.7)';
     MESSAGE_COLOR = args['message-color'] || '#ffffff';
 
-    let currentTime = 0;
+    let currentTime = timeFrom;
     let currentMessageIndex = findMessageIndexAtTime(messages, currentTime);
     let duration = (timeTo - timeFrom) + 2.0; // считаем длительность видео с небольшим запасом
     if (duration <= 0) {
@@ -396,7 +469,7 @@ async function main() {
     function printProgress(currentFrame) {
         const statusLine = ''
           + `${currentFrame+1}/${frames} frames, `
-          + `${Math.floor(currentTime)}s/${Math.floor(duration)}s, `
+          + `${Math.floor(currentTime-timeFrom)}s/${Math.floor(duration)}s, `
           + `${framesPerSecond} FPS, `
           + `x${(framesPerSecond / frameRate).toFixed(1)}, `
           + `${getRemainingTimeString(remainingSeconds)} remaining`;
@@ -425,13 +498,17 @@ async function main() {
             process.stdout.write('\n');
         }
     }
+
+    ctx.fillStyle = CHAT_BACKGROUND;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
     for (let i = 0; i < frames; i++) {
         if (currentMessageIndex < messages.length && currentTime >= messages[currentMessageIndex].time) {
             drawChat(ctx, messages, currentMessageIndex);
             currentMessageIndex++;
         }
         passThroughStream.write(canvas.toBuffer('image/png', { compressionLevel: 0 }));
-        currentTime += 1.0 / frameRate;
+        currentTime = timeFrom + (i / frameRate);
 
         updateProgress(i);
     }
