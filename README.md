@@ -1,4 +1,10 @@
-# yt-dlp - Live Chat JSON to MP4 Video
+# 🚨 This tool has moved to a new repository:
+
+👉 **[https://github.com/koshkokoshka/yt-chat-to-video](https://github.com/koshkokoshka/yt-chat-to-video)**
+
+This old repository is no longer maintained.
+
+# yt-dlp - Live Chat JSON to MP4 Video (Archived)
 
 Converts `.live_chat.json` from [yt-dlp](https://github.com/yt-dlp/yt-dlp) to `.mp4` video for overlaying live chats over recorded streams.
 
